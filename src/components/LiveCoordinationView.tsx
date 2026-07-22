@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Briefcase, 
@@ -18,10 +18,13 @@ import {
   RefreshCw,
   Cpu,
   Database,
-  Mail,
-  FileText,
-  Sparkles,
-  Loader2
+  Mail, 
+  FileText, 
+  Sparkles, 
+  Loader2,
+  Link2,
+  CheckCircle2,
+  AlertCircle
 } from 'lucide-react';
 import { ActionIntent, Intersection } from '../types';
 
@@ -35,9 +38,14 @@ interface LiveCoordinationViewProps {
   setGemmaLogs: React.Dispatch<React.SetStateAction<string[]>>;
   gemmaSelectedOption: 'both_coordinated' | 'drop_career' | null;
   setGemmaSelectedOption: (option: 'both_coordinated' | 'drop_career' | null) => void;
-  /** Coordination target identity; defaults to the demo's "Maya Chen" scenario but can be
-   * overridden by a real host discovered via the Luma + ActionLayer lookup. */
+  /** Coordination target identity; starts as an unresolved "Guest" placeholder and is
+   * replaced once ActionLayer browses the Luma event page and reports a real host. */
   targetName?: string;
+  /** Public Luma event URL that the coordinated invitation is routed through instead of
+   * a direct message, once the recommendation is approved. */
+  lumaEventUrl?: string;
+  /** Called once ActionLayer reports the first host listed on the Luma event page. */
+  onHostResolved?: (name: string, context: { eventName: string | null; eventUrl: string }) => void;
 }
 
 export const LiveCoordinationView: React.FC<LiveCoordinationViewProps> = ({ 
@@ -50,7 +58,9 @@ export const LiveCoordinationView: React.FC<LiveCoordinationViewProps> = ({
   setGemmaLogs,
   gemmaSelectedOption,
   setGemmaSelectedOption,
-  targetName = 'Maya Chen',
+  targetName = 'Guest',
+  lumaEventUrl,
+  onHostResolved,
 }) => {
   const [hoveredIntentId, setHoveredIntentId] = useState<string | null>(null);
   const [activeHighlightGroup, setActiveHighlightGroup] = useState<'relationship' | 'resource' | null>(null);
@@ -78,6 +88,93 @@ export const LiveCoordinationView: React.FC<LiveCoordinationViewProps> = ({
     awaitingResponseFrom: string;
     sentAt?: string;
   } | null>(null);
+
+  // Luma + ActionLayer host-routing sequence, triggered once the coordinated
+  // recommendation is approved. Real, read-only ActionLayer browser task; nothing is
+  // ever contacted. The "confirming" -> "confirmed" step is an explicitly simulated
+  // stand-in for a human personnel confirmation loop we don't have wired up.
+  const [lumaStage, setLumaStage] = useState<'idle' | 'browsing' | 'found' | 'confirming' | 'confirmed' | 'error'>('idle');
+  const [lumaLogs, setLumaLogs] = useState<string[]>([]);
+  const [foundHostName, setFoundHostName] = useState<string | null>(null);
+  const [lumaError, setLumaError] = useState<string | null>(null);
+  const lumaTriggeredRef = useRef(false);
+
+  const runLumaRoutingSequence = useCallback(async () => {
+    if (!lumaEventUrl) return;
+    setLumaStage('browsing');
+    setLumaError(null);
+    setLumaLogs([
+      `[BlueQ] Coordinated invitation approved. Routing outreach through the event's Luma page instead of a direct message.`,
+      `[ActionLayer] Browsing ${lumaEventUrl} (read-only) to identify the event host. Real browser automation — this can take a few minutes.`,
+    ]);
+
+    try {
+      const [eventRes, hostRes] = await Promise.all([
+        fetch('/api/luma-event', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ eventUrl: lumaEventUrl }),
+        }),
+        fetch('/api/actionlayer/find-host', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ eventUrl: lumaEventUrl }),
+        }),
+      ]);
+
+      const eventName = eventRes.ok ? (await eventRes.json()).name ?? null : null;
+
+      if (!hostRes.ok) {
+        const errData = await hostRes.json().catch(() => ({}));
+        throw new Error(errData.message || `ActionLayer request failed with status ${hostRes.status}`);
+      }
+
+      const hostData = await hostRes.json();
+      const hostName: string = hostData.hostName;
+
+      setFoundHostName(hostName);
+      setLumaStage('found');
+      setLumaLogs(prev => [...prev, `[ActionLayer] Located first host listed: ${hostName}.`]);
+      onHostResolved?.(hostName, { eventName, eventUrl: lumaEventUrl });
+
+      setLumaStage('confirming');
+      setLumaLogs(prev => [
+        ...prev,
+        `[BlueQ] Sent confirmation request to event personnel before proceeding with ${hostName}.`,
+      ]);
+
+      await new Promise(resolve => setTimeout(resolve, 1600));
+
+      setLumaStage('confirmed');
+      setLumaLogs(prev => [
+        ...prev,
+        `[BlueQ] (Simulated) Confirmation received — approved to proceed with ${hostName}.`,
+      ]);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      console.error('Luma/ActionLayer host routing failed:', msg);
+      setLumaError(msg);
+      setLumaStage('error');
+      setLumaLogs(prev => [...prev, `[ERROR] ActionLayer host lookup failed — ${msg}`]);
+    }
+  }, [lumaEventUrl, onHostResolved]);
+
+  // Kick off the Luma routing sequence exactly once, the first time the recommendation
+  // is approved and the authorization request has been sent.
+  useEffect(() => {
+    if (gemmaStage === 'resolved' && !lumaTriggeredRef.current) {
+      lumaTriggeredRef.current = true;
+      runLumaRoutingSequence();
+    }
+    if (gemmaStage === 'awaiting_scan') {
+      // Demo reset: allow the sequence to run again on the next walkthrough.
+      lumaTriggeredRef.current = false;
+      setLumaStage('idle');
+      setLumaLogs([]);
+      setFoundHostName(null);
+      setLumaError(null);
+    }
+  }, [gemmaStage, runLumaRoutingSequence]);
 
   const [timestamps, setTimestamps] = useState<{
     issue: string;
@@ -218,7 +315,8 @@ export const LiveCoordinationView: React.FC<LiveCoordinationViewProps> = ({
             }, (idx + 1) * 750);
           });
         } else {
-          throw new Error('API server returned non-200 status');
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.message || `Server returned status ${response.status}`);
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Unknown error';
@@ -1002,6 +1100,53 @@ export const LiveCoordinationView: React.FC<LiveCoordinationViewProps> = ({
                           >
                             View Authorization Request
                           </button>
+                        </div>
+                      )}
+
+                      {gemmaStage === 'resolved' && lumaEventUrl && (
+                        <div className="mt-3 p-3 bg-slate-950/60 border border-cyan-900/40 rounded-lg space-y-2.5 relative z-10">
+                          <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-cyan-300">
+                            <Link2 className="h-3.5 w-3.5" />
+                            Routing Through Luma
+                          </div>
+
+                          <div className="space-y-1.5 font-mono text-[10px] text-slate-300">
+                            {lumaLogs.map((log, i) => (
+                              <div key={i} className="leading-normal border-l border-cyan-900/30 pl-2">
+                                <span className="text-cyan-500 mr-1 font-bold">&gt;</span>
+                                {log}
+                              </div>
+                            ))}
+                          </div>
+
+                          {(lumaStage === 'browsing') && (
+                            <div className="flex items-center gap-2 text-[10px] text-cyan-300">
+                              <Loader2 className="h-3 w-3 animate-spin" />
+                              <span>Real ActionLayer browser task in progress&mdash;can take a few minutes, especially during busy periods.</span>
+                            </div>
+                          )}
+
+                          {lumaStage === 'confirmed' && foundHostName && (
+                            <div className="flex items-center gap-2 text-[10px] text-emerald-300 pt-1">
+                              <CheckCircle2 className="h-3.5 w-3.5" />
+                              <span>Confirmed target: <strong>{foundHostName}</strong></span>
+                            </div>
+                          )}
+
+                          {lumaStage === 'error' && (
+                            <div className="space-y-2 pt-1">
+                              <div className="flex items-start gap-2 text-[10px] text-red-300">
+                                <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                                <span>{lumaError}</span>
+                              </div>
+                              <button
+                                onClick={() => runLumaRoutingSequence()}
+                                className="w-full py-1.5 bg-slate-700 hover:bg-slate-600 text-white text-[10px] font-bold rounded-lg transition-colors cursor-pointer text-center font-sans"
+                              >
+                                Retry
+                              </button>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

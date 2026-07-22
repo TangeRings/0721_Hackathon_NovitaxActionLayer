@@ -53,7 +53,7 @@ export const IntersectionsView: React.FC<IntersectionsViewProps> = ({
   setGemmaLogs,
   gemmaSelectedOption,
   setGemmaSelectedOption,
-  targetName = 'Maya Chen',
+  targetName = 'Guest',
 }) => {
   const [selectedIntersectionId, setSelectedIntersectionId] = useState<string>('intersection-relationship');
   const [showSuccessBanner, setShowSuccessBanner] = useState(false);
@@ -89,6 +89,7 @@ export const IntersectionsView: React.FC<IntersectionsViewProps> = ({
           const response = await fetch('/api/consolidate-outreach', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ targetName }),
           });
           if (!response.ok) {
             const errData = await response.json().catch(() => ({}));
@@ -103,7 +104,7 @@ export const IntersectionsView: React.FC<IntersectionsViewProps> = ({
             generatedContent: 'Joint Invitation from Stanford University: Fall AI Panel & Hackathon Keynote',
             provenanceTrail: [
               "[Central Coordination Agent] Intercepted overlapping intents from Career Services and Innovation Lab.",
-              "[Central Coordination Agent] Verified that Maya Chen spoke at AI Research Center 8 days ago.",
+              `[Central Coordination Agent] Verified that ${targetName} spoke at AI Research Center 8 days ago.`,
               "[Central Coordination Agent] Compiled single professional invitation from Alumni Relations Office.",
               "[Central Coordination Agent] Dispatched coordinated notification to both department heads."
             ]
@@ -136,6 +137,7 @@ export const IntersectionsView: React.FC<IntersectionsViewProps> = ({
       const response = await fetch('/api/consolidate-outreach', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetName }),
       });
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));

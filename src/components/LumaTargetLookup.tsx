@@ -6,6 +6,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link2, Search, Loader2, UserCheck, ChevronRight, AlertCircle, CalendarDays } from 'lucide-react';
+import { DEMO_LUMA_EVENT_URL } from '../config';
 
 interface LumaEventContext {
   name: string | null;
@@ -30,7 +31,7 @@ interface LumaTargetLookupProps {
 }
 
 export const LumaTargetLookup: React.FC<LumaTargetLookupProps> = ({ currentTargetName, onUseAsTarget }) => {
-  const [eventUrl, setEventUrl] = useState('');
+  const [eventUrl, setEventUrl] = useState(DEMO_LUMA_EVENT_URL);
   const [loading, setLoading] = useState(false);
   const [eventContext, setEventContext] = useState<LumaEventContext | null>(null);
   const [hostResult, setHostResult] = useState<HostLookupResult | null>(null);
@@ -64,11 +65,13 @@ export const LumaTargetLookup: React.FC<LumaTargetLookupProps> = ({ currentTarge
       if (hostRes.ok) {
         setHostResult(await hostRes.json());
       } else {
-        throw new Error('ActionLayer host lookup request failed.');
+        const errData = await hostRes.json().catch(() => ({}));
+        throw new Error(errData.message || `ActionLayer request failed with status ${hostRes.status}`);
       }
     } catch (err) {
-      console.error(err);
-      setError('Lookup failed. Check the event URL and try again.');
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      console.error('Luma/ActionLayer lookup failed:', msg);
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -84,7 +87,8 @@ export const LumaTargetLookup: React.FC<LumaTargetLookupProps> = ({ currentTarge
         <p className="text-xs text-slate-500 mt-1 leading-relaxed">
           Paste a public Luma event URL. Event context comes straight from Luma&apos;s public API;
           ActionLayer browses the page (read-only) to report the first host listed. Nothing is
-          contacted or sent.
+          contacted or sent. Real browser automation can take a couple of minutes, especially
+          when ActionLayer&apos;s operator queue is busy.
         </p>
       </div>
 
@@ -106,10 +110,20 @@ export const LumaTargetLookup: React.FC<LumaTargetLookupProps> = ({ currentTarge
         </button>
       </div>
 
+      {loading && (
+        <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-lg p-3">
+          <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
+          <span>Browsing the event page via a real ActionLayer browser task&mdash;this can take a few minutes.</span>
+        </div>
+      )}
+
       {error && (
         <div className="flex items-start gap-2 text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-lg p-3">
           <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-          <span>{error}</span>
+          <div>
+            <p className="font-semibold">ActionLayer connection error</p>
+            <p className="mt-0.5">{error}</p>
+          </div>
         </div>
       )}
 

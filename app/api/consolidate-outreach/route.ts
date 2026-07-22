@@ -3,11 +3,15 @@ import { generateJson } from '@/lib/novita';
 
 export const runtime = 'nodejs';
 
-export async function POST() {
+export async function POST(request: Request) {
+  const { targetName } = await request.json().catch(() => ({ targetName: undefined }));
+  const recipient = targetName || 'Guest';
+
   try {
     const prompt = `
 You are the Semantic Conflict Detector & Handshake Broker for BlueQ.
-We are consolidating separate outreach intents to "Maya Chen" (Director of AI Partnerships at Google) under "Alumni Relations" in coordination with "Career Services" and "Innovation Lab".
+We are consolidating separate outreach intents to "${recipient}" under "Alumni Relations" in coordination with "Career Services" and "Innovation Lab".
+${recipient === 'Guest' ? 'The exact identity of the invitee has not been resolved yet, so address the draft generically as a valued guest/host rather than inventing a name or title.' : ''}
 
 Create a single consolidated, highly professional Gmail draft that:
 1. Originates from "Alumni Relations".
@@ -17,7 +21,7 @@ Create a single consolidated, highly professional Gmail draft that:
 
 Return a JSON structure:
 - sender: "Alumni Relations"
-- recipient: "Maya Chen (Director of AI Partnerships at Google)"
+- recipient: "${recipient}"
 - collaborators: string[] (Career Services, Innovation Lab)
 - subject: string
 - body: string (the full HTML/text of the email draft, spaced professionally with salutations)

@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion } from 'motion/react';
 import { 
   initialActionIntents, 
@@ -13,6 +13,7 @@ import {
   initialHandshakes, 
   initialCourseRecognitions 
 } from './data';
+import { DEMO_LUMA_EVENT_URL } from './config';
 import { ActionIntent, Intersection, Handshake, CourseRecognition } from './types';
 import { LiveCoordinationView } from './components/LiveCoordinationView';
 import { IntersectionsView } from './components/IntersectionsView';
@@ -38,9 +39,10 @@ export default function App() {
   // Navigation Tabs for Dashboard
   const [activeTab, setActiveTab] = useState<'mesh' | 'intersections' | 'audit' | 'target'>('mesh');
 
-  // Coordination target identity: defaults to the demo's original "Maya Chen" scenario,
-  // and can be overridden once a real host is discovered via the Luma + ActionLayer lookup.
-  const [targetName, setTargetName] = useState<string>('Maya Chen');
+  // Coordination target identity: starts as an unresolved "Guest" placeholder because
+  // the real invitee isn't known yet. It's replaced once ActionLayer browses the Luma
+  // event page (read-only) and reports the first host listed.
+  const [targetName, setTargetName] = useState<string>('Guest');
   const [targetContext, setTargetContext] = useState<{ eventName: string | null; eventUrl: string } | null>(null);
 
   const handleUseAsTarget = (name: string, context: { eventName: string | null; eventUrl: string }) => {
@@ -59,6 +61,31 @@ export default function App() {
   const [intersections, setIntersections] = useState<Intersection[]>(initialIntersections);
   const [handshakes, setHandshakes] = useState<Handshake[]>(initialHandshakes);
   const [courseRecognitions, setCourseRecognitions] = useState<CourseRecognition[]>(initialCourseRecognitions);
+
+  // Seed data was originally written around a hardcoded "Maya Chen" scenario. Derive
+  // display copies that substitute in whatever the current coordination target is
+  // (starts as "Guest", becomes the real host once the Luma lookup resolves) so the
+  // whole UI stays consistent without mutating the underlying intent/intersection state.
+  const displayIntents = useMemo<ActionIntent[]>(
+    () =>
+      intents.map((intent) => ({
+        ...intent,
+        targetPersonOrResource:
+          intent.targetPersonOrResource === 'Maya Chen' ? targetName : intent.targetPersonOrResource,
+        declaredPurpose: intent.declaredPurpose.replace(/Maya Chen/g, targetName),
+      })),
+    [intents, targetName]
+  );
+
+  const displayIntersections = useMemo<Intersection[]>(
+    () =>
+      intersections.map((intersection) => ({
+        ...intersection,
+        title: intersection.title.replace(/Maya Chen/g, targetName),
+        description: intersection.description.replace(/Maya Chen/g, targetName),
+      })),
+    [intersections, targetName]
+  );
 
   // Switch to intersection view and focus on a specific conflict
   const handleFocusIntersection = (id: string) => {
@@ -206,8 +233,8 @@ export default function App() {
         <div className="w-full">
           {activeTab === 'mesh' && (
             <LiveCoordinationView 
-              intents={intents} 
-              intersections={intersections}
+              intents={displayIntents} 
+              intersections={displayIntersections}
               onSelectIntersection={handleFocusIntersection}
               gemmaStage={gemmaStage}
               setGemmaStage={setGemmaStage}
@@ -216,13 +243,15 @@ export default function App() {
               gemmaSelectedOption={gemmaSelectedOption}
               setGemmaSelectedOption={setGemmaSelectedOption}
               targetName={targetName}
+              lumaEventUrl={DEMO_LUMA_EVENT_URL}
+              onHostResolved={handleUseAsTarget}
             />
           )}
 
           {activeTab === 'intersections' && (
             <IntersectionsView
-              intents={intents}
-              intersections={intersections}
+              intents={displayIntents}
+              intersections={displayIntersections}
               onAddHandshake={handleAddHandshake}
               onUpdateIntersectionStatus={handleUpdateIntersectionStatus}
               gemmaStage={gemmaStage}
