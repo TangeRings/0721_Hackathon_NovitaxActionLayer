@@ -212,10 +212,10 @@ export const InitialScreenView: React.FC<InitialScreenViewProps> = ({ onContinue
                         {/* Row 1 (Highlight!) */}
                         <div className="grid grid-cols-12 gap-1 py-1.5 border-b border-rose-100 items-center font-medium rounded px-1 border-l-2 border-l-rose-500 relative overflow-visible animate-flash-red">
                           <div className="col-span-4 text-slate-900 font-bold flex items-center gap-1">
-                            Maya Chen <span className="relative flex h-2 w-2 ml-1"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-500 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-rose-600"></span></span>
+                            Last Mile Hackathon Host <span className="relative flex h-2 w-2 ml-1"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-500 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-rose-600"></span></span>
                           </div>
-                          <div className="col-span-3 text-slate-600">Google</div>
-                          <div className="col-span-3 text-slate-600 truncate">Dir. AI Partnerships</div>
+                          <div className="col-span-3 text-slate-600">Novita AI</div>
+                          <div className="col-span-3 text-slate-600 truncate">Event Organizer</div>
                           <div className="col-span-2 text-right font-bold text-emerald-600">Excellent</div>
                         </div>
                         {/* Row 2 */}
@@ -358,9 +358,9 @@ export const InitialScreenView: React.FC<InitialScreenViewProps> = ({ onContinue
                         {/* Row 1 (Highlight!) */}
                         <div className="grid grid-cols-12 gap-1 py-1.5 border-b border-rose-100 items-center font-medium rounded px-1 border-l-2 border-l-rose-500 relative overflow-visible animate-flash-red">
                           <div className="col-span-4 text-slate-900 font-bold flex items-center gap-1">
-                            Maya Chen <span className="relative flex h-2 w-2 ml-1"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-500 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-rose-600"></span></span>
+                            Last Mile Hackathon Host <span className="relative flex h-2 w-2 ml-1"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-500 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-rose-600"></span></span>
                           </div>
-                          <div className="col-span-4 text-slate-600">Google</div>
+                          <div className="col-span-4 text-slate-600">Novita AI</div>
                           <div className="col-span-4 text-right font-bold text-indigo-600">Yes</div>
                         </div>
                         {/* Row 2 */}
@@ -427,7 +427,7 @@ export const InitialScreenView: React.FC<InitialScreenViewProps> = ({ onContinue
                         <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
                         Possible speaker conflict detected:{" "}
                         <span className="underline font-black decoration-amber-500 text-indigo-600 bg-amber-50/80 px-2 py-0.5 rounded border border-amber-200">
-                          Maya Chen
+                          Last Mile Hackathon Host
                         </span>
                       </p>
                     </motion.div>
