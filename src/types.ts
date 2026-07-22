@@ -31,6 +31,7 @@ export interface Intersection {
     timestamp: string;
     resultSummary: string;
     generatedContent?: string; // e.g., the coordinated Gmail draft or the access grant
+    provenanceTrail?: string[];
     scopedAccess?: {
       viewOnly: boolean;
       duration72h: boolean;
