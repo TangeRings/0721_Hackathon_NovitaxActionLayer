@@ -97,7 +97,23 @@ export const LiveCoordinationView: React.FC<LiveCoordinationViewProps> = ({
   const [lumaLogs, setLumaLogs] = useState<string[]>([]);
   const [foundHostName, setFoundHostName] = useState<string | null>(null);
   const [lumaError, setLumaError] = useState<string | null>(null);
+  const [lumaElapsedSeconds, setLumaElapsedSeconds] = useState(0);
   const lumaTriggeredRef = useRef(false);
+
+  // Live "N seconds elapsed" ticker while the real ActionLayer browser task is in
+  // flight, so the wait doesn't look stalled during long operator-queue delays.
+  useEffect(() => {
+    if (lumaStage !== 'browsing') {
+      setLumaElapsedSeconds(0);
+      return;
+    }
+    setLumaElapsedSeconds(0);
+    const startedAt = Date.now();
+    const interval = setInterval(() => {
+      setLumaElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [lumaStage]);
 
   const runLumaRoutingSequence = useCallback(async () => {
     if (!lumaEventUrl) return;
@@ -1121,8 +1137,12 @@ export const LiveCoordinationView: React.FC<LiveCoordinationViewProps> = ({
 
                           {(lumaStage === 'browsing') && (
                             <div className="flex items-center gap-2 text-[10px] text-cyan-300">
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                              <span>Real ActionLayer browser task in progress&mdash;can take a few minutes, especially during busy periods.</span>
+                              <Loader2 className="h-3 w-3 animate-spin shrink-0" />
+                              <span>
+                                Real ActionLayer browser task in progress&mdash;
+                                <strong className="font-mono">{lumaElapsedSeconds}s</strong> elapsed. Can take a
+                                few minutes during busy operator-queue periods.
+                              </span>
                             </div>
                           )}
 

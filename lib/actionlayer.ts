@@ -112,7 +112,7 @@ export async function pollTaskUntilDone(
   ticketId: string,
   options: { timeoutMs?: number; intervalMs?: number } = {}
 ): Promise<ActionLayerTicket> {
-  const timeoutMs = options.timeoutMs ?? 180000;
+  const timeoutMs = options.timeoutMs ?? 300000;
   const intervalMs = options.intervalMs ?? 4000;
   const startedAt = Date.now();
 

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Link2, Search, Loader2, UserCheck, ChevronRight, AlertCircle, CalendarDays } from 'lucide-react';
 import { DEMO_LUMA_EVENT_URL } from '../config';
@@ -36,6 +36,21 @@ export const LumaTargetLookup: React.FC<LumaTargetLookupProps> = ({ currentTarge
   const [eventContext, setEventContext] = useState<LumaEventContext | null>(null);
   const [hostResult, setHostResult] = useState<HostLookupResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
+  // Live "N seconds elapsed" ticker so a slow real ActionLayer operator queue doesn't
+  // look stalled during the wait.
+  useEffect(() => {
+    if (!loading) {
+      setElapsedSeconds(0);
+      return;
+    }
+    const startedAt = Date.now();
+    const interval = setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [loading]);
 
   const handleLookup = async () => {
     if (!eventUrl.trim()) return;
@@ -113,7 +128,10 @@ export const LumaTargetLookup: React.FC<LumaTargetLookupProps> = ({ currentTarge
       {loading && (
         <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-lg p-3">
           <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
-          <span>Browsing the event page via a real ActionLayer browser task&mdash;this can take a few minutes.</span>
+          <span>
+            Browsing the event page via a real ActionLayer browser task&mdash;
+            <strong className="font-mono">{elapsedSeconds}s</strong> elapsed. Can take a few minutes.
+          </span>
         </div>
       )}
 
