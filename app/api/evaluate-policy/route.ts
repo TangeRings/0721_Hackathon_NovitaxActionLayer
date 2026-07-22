@@ -82,35 +82,12 @@ Generate a JSON structure explaining this policy decision, defining the automati
 
     const data = parseModelJson(response.text);
     return NextResponse.json({ ...data, mode: 'live' });
-  } catch {
-    console.log('Gemini API policy evaluation skipped or failed, using local fallback.');
-    return NextResponse.json({
-      automaticShared: [
-        'Project Title (ShelfSense)',
-        'Abstract',
-        'Topic Tags (Consumer Insights, Retail AI)',
-        'Research Methodology Summary',
-        'Demo Video',
-      ],
-      approvalRequired: ['Unpublished Prototype Access'],
-      privateRestricted: ['Raw Interview Transcripts', 'Source Files', 'Student Personal Data'],
-      policyExplanation:
-        'Research methodology, abstract, and demo video can be shared automatically under course collaboration guidelines. However, the unpublished prototype requires project-team approval, and raw transcripts or personal details are strictly private under institutional FERPA regulations.',
-      scopedAccessGrant: {
-        viewOnly: true,
-        duration72h: true,
-        noDownload: true,
-        noRawData: true,
-        noContactDisclosure: true,
-        authorityApproving: 'Marketing Analytics Project Team (Pending Student Handshake)',
-      },
-      provenanceTrail: [
-        'AI for Business Student Discovery Agent requested research assets.',
-        'BlueQ Policy Resolver evaluated Marketing Analytics policy schema.',
-        'Determined mixed sharing permission tier (Auto, Handshake, Private).',
-        'Broker generated a granular 72-hour view-only handshake card.',
-      ],
-      mode: 'fallback',
-    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    console.error('Gemini API error (evaluate-policy):', message);
+    return NextResponse.json(
+      { error: true, message: `AI connection error: ${message}` },
+      { status: 503 }
+    );
   }
 }

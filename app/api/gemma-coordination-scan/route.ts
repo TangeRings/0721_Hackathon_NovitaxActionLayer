@@ -119,29 +119,12 @@ Return JSON only.
 
     const data = parseModelJson(response.text);
     return NextResponse.json({ ...data, mode: 'live' });
-  } catch {
-    console.log('BlueQ coordination scan skipped or failed, using local fallback.');
-
-    return NextResponse.json({
-      logs: [
-        '[BlueQ] Matched both action intents to the same alumni identity: Maya Chen.',
-        '[BlueQ] Found recent institutional context: Research Center seminar 8 days ago.',
-        '[BlueQ] Identified Alumni Relations as the relationship owner.',
-        '[BlueQ] Duplicate outreach risk detected; both drafts remain unsent pending review.',
-      ],
-      conflictAnalysis:
-        'Career Services and Innovation Lab are independently preparing outreach to the same alumna shortly after a recent Research Center event. Each local action is reasonable, but separate execution may create duplicated communication, relationship fatigue, and an incoherent institutional experience.',
-      solution1: {
-        title: 'Request Alumni Relations Review',
-        description:
-          'Pause both unsent drafts and ask Alumni Relations to determine whether the opportunities should be combined, sequenced, or handled separately.',
-      },
-      solution2: {
-        title: 'Prioritize One Invitation',
-        description:
-          'Ask Alumni Relations and both departments to select the more time-sensitive opportunity while the other team identifies an alternative speaker.',
-      },
-      mode: 'fallback',
-    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    console.error('Gemini API error (coordination-scan):', message);
+    return NextResponse.json(
+      { error: true, message: `AI connection error: ${message}` },
+      { status: 503 }
+    );
   }
 }

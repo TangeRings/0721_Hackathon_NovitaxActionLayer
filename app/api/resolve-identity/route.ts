@@ -57,21 +57,12 @@ Return a strict JSON response with these keys:
 
     const data = parseModelJson(response.text);
     return NextResponse.json({ ...data, mode: 'live' });
-  } catch {
-    console.log('Gemini API resolution skipped or failed, using local fallback.');
-    return NextResponse.json({
-      isSameIndividual: true,
-      explanation:
-        'Each action is independently valid. Together, they create an incoherent institutional relationship.',
-      relationshipOwner: 'Alumni Relations',
-      conflictsDetected: [
-        'Duplicate speaker invitations for separate events (AI Careers Week vs. Business Innovation Hackathon) scheduled in close proximity.',
-        'Bypassing Alumni Relations, who acts as the primary relationship owner for Maya Chen.',
-      ],
-      historicalContext:
-        'Maya Chen spoke at an AI Research Center seminar 8 days ago, meaning immediate repeat outreach feels uncoordinated.',
-      mode: 'fallback',
-      warning: 'Using offline resolver fallback (GEMINI_API_KEY is not configured in secrets).',
-    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    console.error('Gemini API error (resolve-identity):', message);
+    return NextResponse.json(
+      { error: true, message: `AI connection error: ${message}` },
+      { status: 503 }
+    );
   }
 }

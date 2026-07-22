@@ -18,6 +18,7 @@ import { LiveCoordinationView } from './components/LiveCoordinationView';
 import { IntersectionsView } from './components/IntersectionsView';
 import { AuditView } from './components/AuditView';
 import { InitialScreenView } from './components/InitialScreenView';
+import { LumaTargetLookup } from './components/LumaTargetLookup';
 import { 
   Calendar, 
   Database, 
@@ -35,11 +36,21 @@ export default function App() {
   const [currentView, setCurrentView] = useState<'initial' | 'dashboard'>('initial');
 
   // Navigation Tabs for Dashboard
-  const [activeTab, setActiveTab] = useState<'mesh' | 'intersections' | 'audit'>('mesh');
+  const [activeTab, setActiveTab] = useState<'mesh' | 'intersections' | 'audit' | 'target'>('mesh');
+
+  // Coordination target identity: defaults to the demo's original "Maya Chen" scenario,
+  // and can be overridden once a real host is discovered via the Luma + ActionLayer lookup.
+  const [targetName, setTargetName] = useState<string>('Maya Chen');
+  const [targetContext, setTargetContext] = useState<{ eventName: string | null; eventUrl: string } | null>(null);
+
+  const handleUseAsTarget = (name: string, context: { eventName: string | null; eventUrl: string }) => {
+    setTargetName(name);
+    setTargetContext(context);
+  };
 
   // Gemma Coordinator Simulation State
   // 'awaiting_scan' | 'thinking' | 'analyzed_issues' | 'recommendation' | 'resolved'
-  const [gemmaStage, setGemmaStage] = useState<'awaiting_scan' | 'thinking' | 'analyzed_issues' | 'recommendation' | 'resolved'>('awaiting_scan');
+  const [gemmaStage, setGemmaStage] = useState<'awaiting_scan' | 'thinking' | 'analyzed_issues' | 'recommendation' | 'resolved' | 'error'>('awaiting_scan');
   const [gemmaLogs, setGemmaLogs] = useState<string[]>([]);
   const [gemmaSelectedOption, setGemmaSelectedOption] = useState<'both_coordinated' | 'drop_career' | null>(null);
 
@@ -114,6 +125,7 @@ export default function App() {
             { id: 'mesh', label: 'Live Coordination' },
             { id: 'intersections', label: 'Intersections' },
             { id: 'audit', label: 'Handshakes & Audit' },
+            { id: 'target', label: 'Target Lookup' },
           ].map((tab) => {
             const isActive = activeTab === tab.id;
             return (
@@ -203,6 +215,7 @@ export default function App() {
               setGemmaLogs={setGemmaLogs}
               gemmaSelectedOption={gemmaSelectedOption}
               setGemmaSelectedOption={setGemmaSelectedOption}
+              targetName={targetName}
             />
           )}
 
@@ -218,6 +231,7 @@ export default function App() {
               setGemmaLogs={setGemmaLogs}
               gemmaSelectedOption={gemmaSelectedOption}
               setGemmaSelectedOption={setGemmaSelectedOption}
+              targetName={targetName}
             />
           )}
 
@@ -228,6 +242,18 @@ export default function App() {
               onRevokeHandshake={handleRevokeHandshake}
               onPublishLecture={handlePublishLecture}
             />
+          )}
+
+          {activeTab === 'target' && (
+            <div className="space-y-4">
+              <LumaTargetLookup currentTargetName={targetName} onUseAsTarget={handleUseAsTarget} />
+              {targetContext && (
+                <div className="max-w-2xl text-[11px] text-slate-500 font-mono bg-slate-50 border border-slate-200 rounded-lg p-3">
+                  Active coordination target: <span className="text-slate-800 font-bold">{targetName}</span>
+                  {targetContext.eventName && <> &bull; from event &quot;{targetContext.eventName}&quot;</>}
+                </div>
+              )}
+            </div>
           )}
         </div>
       </main>

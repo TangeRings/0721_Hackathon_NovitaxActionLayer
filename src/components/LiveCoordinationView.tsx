@@ -29,12 +29,15 @@ interface LiveCoordinationViewProps {
   intents: ActionIntent[];
   intersections: Intersection[];
   onSelectIntersection: (id: string) => void;
-  gemmaStage: 'awaiting_scan' | 'thinking' | 'analyzed_issues' | 'recommendation' | 'resolved';
-  setGemmaStage: (stage: 'awaiting_scan' | 'thinking' | 'analyzed_issues' | 'recommendation' | 'resolved') => void;
+  gemmaStage: 'awaiting_scan' | 'thinking' | 'analyzed_issues' | 'recommendation' | 'resolved' | 'error';
+  setGemmaStage: (stage: 'awaiting_scan' | 'thinking' | 'analyzed_issues' | 'recommendation' | 'resolved' | 'error') => void;
   gemmaLogs: string[];
   setGemmaLogs: React.Dispatch<React.SetStateAction<string[]>>;
   gemmaSelectedOption: 'both_coordinated' | 'drop_career' | null;
   setGemmaSelectedOption: (option: 'both_coordinated' | 'drop_career' | null) => void;
+  /** Coordination target identity; defaults to the demo's "Maya Chen" scenario but can be
+   * overridden by a real host discovered via the Luma + ActionLayer lookup. */
+  targetName?: string;
 }
 
 export const LiveCoordinationView: React.FC<LiveCoordinationViewProps> = ({ 
@@ -46,7 +49,8 @@ export const LiveCoordinationView: React.FC<LiveCoordinationViewProps> = ({
   gemmaLogs,
   setGemmaLogs,
   gemmaSelectedOption,
-  setGemmaSelectedOption
+  setGemmaSelectedOption,
+  targetName = 'Maya Chen',
 }) => {
   const [hoveredIntentId, setHoveredIntentId] = useState<string | null>(null);
   const [activeHighlightGroup, setActiveHighlightGroup] = useState<'relationship' | 'resource' | null>(null);
@@ -172,16 +176,16 @@ export const LiveCoordinationView: React.FC<LiveCoordinationViewProps> = ({
             secretaryTask: {
               domain: 'Career Services',
               agent: 'Secretary Agent',
-              target: 'Maya Chen',
+              target: targetName,
               action: 'Preparing alumni invitation for AI Careers Week.'
             },
             hackathonTask: {
               domain: 'Innovation Lab',
               agent: 'Hackathon Agent',
-              target: 'Maya Chen',
+              target: targetName,
               action: 'Preparing keynote outreach for Business Innovation Hackathon.'
             },
-            historicalContext: 'Maya Chen spoke at an AI Research Center seminar 8 days ago.'
+            historicalContext: `${targetName} spoke at an AI Research Center seminar 8 days ago.`
           })
         });
 
@@ -217,30 +221,13 @@ export const LiveCoordinationView: React.FC<LiveCoordinationViewProps> = ({
           throw new Error('API server returned non-200 status');
         }
       } catch (err) {
-        console.log('Real Gemma scan offline, running local fallback scan.');
-        const fallbackLogs = [
-          "[Central Coordination Agent] Scanning federated channels for overlapping intents...",
-          "[Central Coordination Agent] Detected dual intents targeting ALUM-29931-MC (Maya Chen)...",
-          "[Central Coordination Agent] Collision check: Maya Chen spoke at AI Research Center 8 days ago.",
-          "[Central Coordination Agent] Conflict analysis complete: schedule clash detected."
-        ];
-        fallbackLogs.forEach((logStr, idx) => {
-          setTimeout(() => {
-            setGemmaLogs(prev => [...prev, logStr]);
-            
-            // Phase 1: Issue detected at log index 2
-            if (idx === 2) {
-              setGemmaStage('analyzed_issues');
-            }
-            
-            // Phase 2: Recommendation triggered after last log
-            if (idx === fallbackLogs.length - 1) {
-              setTimeout(() => {
-                setGemmaStage('recommendation');
-              }, 1200);
-            }
-          }, (idx + 1) * 750);
-        });
+        const msg = err instanceof Error ? err.message : 'Unknown error';
+        console.error('Coordination scan failed:', msg);
+        setGemmaLogs(prev => [
+          ...prev,
+          `[ERROR] AI connection failed — ${msg}`,
+        ]);
+        setGemmaStage('error');
       }
     }, 3800);
 
@@ -250,7 +237,7 @@ export const LiveCoordinationView: React.FC<LiveCoordinationViewProps> = ({
       clearTimeout(t3);
       clearTimeout(t4);
     };
-  }, [setGemmaStage, setGemmaLogs, setGemmaSelectedOption]);
+  }, [setGemmaStage, setGemmaLogs, setGemmaSelectedOption, targetName]);
 
   // Run automatically when dashboard renders
   useEffect(() => {
@@ -305,7 +292,7 @@ export const LiveCoordinationView: React.FC<LiveCoordinationViewProps> = ({
           ],
 
           relationshipOwner: 'Alumni Relations',
-          targetPerson: 'Maya Chen',
+          targetPerson: targetName,
         }),
       });
 
@@ -325,20 +312,19 @@ export const LiveCoordinationView: React.FC<LiveCoordinationViewProps> = ({
 
       setGemmaStage('resolved');
     } catch (error) {
-      console.error(error);
-
+      const msg = error instanceof Error ? error.message : 'Unknown error';
+      console.error('Authorization request failed:', msg);
       setGemmaLogs(prev => [
         ...prev,
-        '[BlueQ] Unable to create authorization request.',
+        `[ERROR] Authorization request failed — ${msg}`,
       ]);
-
-      setGemmaStage('recommendation');
+      setGemmaStage('error');
     }
-  }, [setGemmaSelectedOption, setGemmaStage, setGemmaLogs, setAuthorizationRequest]);
+  }, [setGemmaSelectedOption, setGemmaStage, setGemmaLogs, setAuthorizationRequest, targetName]);
 
   // Automatically execute recommended approach when recommendation stage is reached
   useEffect(() => {
-    if (gemmaStage === 'recommendation') {
+    if (gemmaStage === 'recommendation' && coordinationDetails !== null) {
       const autoTimer = setTimeout(() => {
         handleExecuteGemmaDecision('both_coordinated');
       }, 2000);
@@ -609,8 +595,8 @@ export const LiveCoordinationView: React.FC<LiveCoordinationViewProps> = ({
                                         <span className="font-bold shrink-0">{timestamps.issue}</span>
                                         <span>
                                           <strong>Issue:</strong> {intent.domain === 'Career Services' 
-                                            ? 'Innovation Lab also wants to contact Maya Chen' 
-                                            : 'Career Office also wants to contact Maya Chen'}
+                                            ? `Innovation Lab also wants to contact ${targetName}` 
+                                            : `Career Office also wants to contact ${targetName}`}
                                         </span>
                                       </div>
                                     )}
@@ -728,11 +714,13 @@ export const LiveCoordinationView: React.FC<LiveCoordinationViewProps> = ({
                         UNIFIED ENTITY
                       </span>
                       <h4 className="text-sm font-bold text-[#002f9c]">
-                        Maya Chen
+                        {targetName}
                       </h4>
-                      <p className="text-[10px] font-mono text-slate-500">
-                        ID: ALUM-29931-MC
-                      </p>
+                      {targetName === 'Maya Chen' && (
+                        <p className="text-[10px] font-mono text-slate-500">
+                          ID: ALUM-29931-MC
+                        </p>
+                      )}
                     </div>
 
                     {/* Timeline */}
@@ -1001,7 +989,7 @@ export const LiveCoordinationView: React.FC<LiveCoordinationViewProps> = ({
                             <div>
                               <span className="text-slate-500">Subject:</span>{' '}
                               <span className="text-cyan-400">
-                                {authorizationRequest?.subject || 'Review requested: overlapping outreach to Maya Chen'}
+                                {authorizationRequest?.subject || `Review requested: overlapping outreach to ${targetName}`}
                               </span>
                             </div>
                           </div>
@@ -1018,8 +1006,28 @@ export const LiveCoordinationView: React.FC<LiveCoordinationViewProps> = ({
                       )}
                     </div>
 
+                      {gemmaStage === 'error' && (
+                        <div className="space-y-3 relative z-10">
+                          <div className="p-3 bg-red-500/15 border border-red-500/40 rounded-lg text-xs leading-normal">
+                            <span className="text-red-400 font-bold block mb-1">⚠ AI Connection Error</span>
+                            <p className="text-[10px] text-slate-300 leading-normal">
+                              Could not reach the Gemini AI service. Check that <code className="bg-slate-800 px-1 rounded">GEMINI_API_KEY</code> in <code className="bg-slate-800 px-1 rounded">.env.local</code> is valid and restart the server.
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => {
+                              setGemmaStage('awaiting_scan');
+                              setGemmaLogs([]);
+                            }}
+                            className="w-full py-2 bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold rounded-lg transition-colors cursor-pointer text-center font-sans"
+                          >
+                            Retry
+                          </button>
+                        </div>
+                      )}
+
                     {/* AI Explainability Table */}
-                    {gemmaStage !== 'awaiting_scan' && gemmaStage !== 'thinking' && (
+                    {gemmaStage !== 'awaiting_scan' && gemmaStage !== 'thinking' && gemmaStage !== 'error' && (
                       <motion.div
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -1045,7 +1053,9 @@ export const LiveCoordinationView: React.FC<LiveCoordinationViewProps> = ({
                             <tbody className="divide-y divide-slate-100 text-slate-600">
                               <tr>
                                 <td className="py-2 font-bold text-slate-800">Collision Target</td>
-                                <td className="py-2 pl-2 text-rose-600 font-mono font-bold">Maya Chen (ALUM-29931-MC)</td>
+                                <td className="py-2 pl-2 text-rose-600 font-mono font-bold">
+                                  {targetName}{targetName === 'Maya Chen' ? ' (ALUM-29931-MC)' : ''}
+                                </td>
                               </tr>
                               <tr>
                                 <td className="py-2 font-bold text-slate-800">Temporal Closeness</td>

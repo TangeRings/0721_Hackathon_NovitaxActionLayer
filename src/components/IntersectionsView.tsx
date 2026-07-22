@@ -31,12 +31,15 @@ interface IntersectionsViewProps {
   intersections: Intersection[];
   onAddHandshake: (handshake: Handshake) => void;
   onUpdateIntersectionStatus: (id: string, status: Intersection['status'], details: any) => void;
-  gemmaStage: 'awaiting_scan' | 'thinking' | 'analyzed_issues' | 'recommendation' | 'resolved';
-  setGemmaStage: (stage: 'awaiting_scan' | 'thinking' | 'analyzed_issues' | 'recommendation' | 'resolved') => void;
+  gemmaStage: 'awaiting_scan' | 'thinking' | 'analyzed_issues' | 'recommendation' | 'resolved' | 'error';
+  setGemmaStage: (stage: 'awaiting_scan' | 'thinking' | 'analyzed_issues' | 'recommendation' | 'resolved' | 'error') => void;
   gemmaLogs: string[];
   setGemmaLogs: React.Dispatch<React.SetStateAction<string[]>>;
   gemmaSelectedOption: 'both_coordinated' | 'drop_career' | null;
   setGemmaSelectedOption: (option: 'both_coordinated' | 'drop_career' | null) => void;
+  /** Coordination target identity; defaults to the demo's "Maya Chen" scenario but can be
+   * overridden by a real host discovered via the Luma + ActionLayer lookup. */
+  targetName?: string;
 }
 
 export const IntersectionsView: React.FC<IntersectionsViewProps> = ({
@@ -50,6 +53,7 @@ export const IntersectionsView: React.FC<IntersectionsViewProps> = ({
   setGemmaLogs,
   gemmaSelectedOption,
   setGemmaSelectedOption,
+  targetName = 'Maya Chen',
 }) => {
   const [selectedIntersectionId, setSelectedIntersectionId] = useState<string>('intersection-relationship');
   const [showSuccessBanner, setShowSuccessBanner] = useState(false);
@@ -57,6 +61,8 @@ export const IntersectionsView: React.FC<IntersectionsViewProps> = ({
   // Loading states for backend Gemini calls
   const [loadingConsolidation, setLoadingConsolidation] = useState(false);
   const [loadingPolicy, setLoadingPolicy] = useState(false);
+  const [consolidationError, setConsolidationError] = useState<string | null>(null);
+  const [policyError, setPolicyError] = useState<string | null>(null);
   
   // State for relationship collision resolution selection
   const [relationshipChoice, setRelationshipChoice] = useState<string | null>(null);
@@ -84,23 +90,12 @@ export const IntersectionsView: React.FC<IntersectionsViewProps> = ({
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
           });
-          if (response.ok) {
-            const data = await response.json();
-            setConsolidatedDraft(data);
-          } else {
-            // High fidelity fallback draft
-            setConsolidatedDraft({
-              subject: "Coordinated Stanford Invitation: AI Panel & Innovation Keynote - Maya Chen",
-              recipient: "maya.chen@google.com",
-              body: "Subject: Joint Invitation from Stanford University: Fall AI Industry Panel & Hackathon Keynote\n\nDear Maya,\n\nI hope this email finds you well. I am writing to you on behalf of both our Alumni Relations board and our respective engineering departments at Stanford.\n\nTwo of our campus teams recently prioritized inviting you to key events this Fall:\n1. The Stanford Career Services team is hosting our annual 'Fall AI Industry panel' on Wednesday evening.\n2. The Innovation Lab student team is hosting the 'Hackathon Keynote' the following morning.\n\nTo ensure we respect your busy schedule and provide a cohesive experience, we would like to coordinate a single, unified campus visit for you. We would love to host you for both of these flagship events, and we will fully cover your travel and lodging arrangements.\n\nCould we arrange a short 10-minute call to discuss if this dual engagement aligns with your availability?\n\nWarm regards,\nAlumni Relations Coordination Office\nStanford University",
-              provenanceTrail: [
-                "[Central Coordination Agent] Intercepted overlapping intents from Career Services and Innovation Lab.",
-                "[Central Coordination Agent] Verified that Maya Chen spoke at AI Research Center 8 days ago.",
-                "[Central Coordination Agent] Compiled single professional invitation from Alumni Relations Office.",
-                "[Central Coordination Agent] Dispatched coordinated notification to both department heads."
-              ]
-            });
+          if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            throw new Error(errData.message || `Server error ${response.status}`);
           }
+          const data = await response.json();
+          setConsolidatedDraft(data);
           onUpdateIntersectionStatus('intersection-relationship', 'resolved_consolidated', {
             choice: 'Consolidate outreach under Alumni Relations',
             timestamp: new Date().toLocaleTimeString(),
@@ -114,7 +109,9 @@ export const IntersectionsView: React.FC<IntersectionsViewProps> = ({
             ]
           });
         } catch (err) {
-          console.error(err);
+          const msg = err instanceof Error ? err.message : 'Unknown error';
+          console.error('Consolidation failed:', msg);
+          setConsolidationError(msg);
         } finally {
           setLoadingConsolidation(false);
         }
@@ -133,16 +130,20 @@ export const IntersectionsView: React.FC<IntersectionsViewProps> = ({
   // Consolidate outreach API call
   const handleConsolidateOutreach = async () => {
     setLoadingConsolidation(true);
+    setConsolidationError(null);
     setRelationshipChoice('consolidate');
     try {
       const response = await fetch('/api/consolidate-outreach', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.message || `Server error ${response.status}`);
+      }
       const data = await response.json();
       setConsolidatedDraft(data);
 
-      // Notify parent to update intersection status
       onUpdateIntersectionStatus('intersection-relationship', 'resolved_consolidated', {
         choice: 'Consolidate outreach under Alumni Relations',
         timestamp: new Date().toLocaleTimeString(),
@@ -151,7 +152,10 @@ export const IntersectionsView: React.FC<IntersectionsViewProps> = ({
         provenanceTrail: data.provenanceTrail
       });
     } catch (err) {
-      console.error(err);
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      console.error('Consolidation failed:', msg);
+      setConsolidationError(msg);
+      setRelationshipChoice(null);
     } finally {
       setLoadingConsolidation(false);
     }
@@ -226,15 +230,22 @@ export const IntersectionsView: React.FC<IntersectionsViewProps> = ({
   // Evaluate policy with Gemini
   const handleEvaluatePolicy = async () => {
     setLoadingPolicy(true);
+    setPolicyError(null);
     try {
       const response = await fetch('/api/evaluate-policy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
       });
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.message || `Server error ${response.status}`);
+      }
       const data = await response.json();
       setPolicyEvaluation(data);
     } catch (err) {
-      console.error(err);
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      console.error('Policy evaluation failed:', msg);
+      setPolicyError(msg);
     } finally {
       setLoadingPolicy(false);
     }
@@ -332,7 +343,7 @@ export const IntersectionsView: React.FC<IntersectionsViewProps> = ({
                     </span>
                   </div>
                   <h4 className="text-sm font-bold text-slate-800 mt-1 truncate">
-                    {item.type === 'relationship_collision' ? 'Maya Chen' : 'ShelfSense Project'}
+                    {item.type === 'relationship_collision' ? targetName : 'ShelfSense Project'}
                   </h4>
                   <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-relaxed">
                     {item.description}
@@ -532,6 +543,20 @@ export const IntersectionsView: React.FC<IntersectionsViewProps> = ({
                                 Gemini compiling semantic context & drafting outreach...
                               </span>
                             </div>
+                          ) : consolidationError ? (
+                            <div className="border border-red-200 bg-red-50 rounded-xl p-4 flex items-start gap-3">
+                              <AlertCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
+                              <div>
+                                <p className="text-xs font-semibold text-red-700">AI Connection Error</p>
+                                <p className="text-[11px] text-red-600 mt-0.5">{consolidationError}</p>
+                                <button
+                                  onClick={() => { setConsolidationError(null); handleConsolidateOutreach(); }}
+                                  className="mt-2 text-[11px] text-red-700 underline hover:no-underline cursor-pointer"
+                                >
+                                  Retry
+                                </button>
+                              </div>
+                            </div>
                           ) : (
                             consolidatedDraft && (
                               <motion.div 
@@ -682,6 +707,20 @@ export const IntersectionsView: React.FC<IntersectionsViewProps> = ({
                       <span className="text-xs text-slate-500 font-mono">
                         Evaluating canvas authorization policies via Gemini...
                       </span>
+                    </div>
+                  ) : policyError ? (
+                    <div className="border border-red-200 bg-red-50 rounded-xl p-4 flex items-start gap-3">
+                      <AlertCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-xs font-semibold text-red-700">AI Connection Error</p>
+                        <p className="text-[11px] text-red-600 mt-0.5">{policyError}</p>
+                        <button
+                          onClick={() => { setPolicyError(null); handleEvaluatePolicy(); }}
+                          className="mt-2 text-[11px] text-red-700 underline hover:no-underline cursor-pointer"
+                        >
+                          Retry
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     policyEvaluation && (

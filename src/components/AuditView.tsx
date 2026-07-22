@@ -17,6 +17,7 @@ import {
   Clock, 
   FileText, 
   AlertTriangle,
+  AlertCircle,
   Award,
   Loader2,
   ChevronRight,
@@ -38,18 +39,24 @@ export const AuditView: React.FC<AuditViewProps> = ({
 }) => {
   const [customLectureTitle, setCustomLectureTitle] = useState('Public Lecture: AI Governance & Ethics');
   const [publishingLecture, setPublishingLecture] = useState(false);
+  const [publishError, setPublishError] = useState<string | null>(null);
   const [activeCourseAudit, setActiveCourseAudit] = useState<CourseRecognition | null>(null);
 
   // Publish a new lecture event and translate its meaning via Gemini API
   const handlePublishLecture = async () => {
     if (!customLectureTitle.trim()) return;
     setPublishingLecture(true);
+    setPublishError(null);
     try {
       const response = await fetch('/api/translate-meaning', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ lectureTitle: customLectureTitle }),
       });
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.message || `Server error ${response.status}`);
+      }
       const data = await response.json();
       
       const newRecognition: CourseRecognition = {
@@ -67,7 +74,9 @@ export const AuditView: React.FC<AuditViewProps> = ({
       onPublishLecture(newRecognition);
       setActiveCourseAudit(newRecognition);
     } catch (err) {
-      console.error(err);
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      console.error('Lecture publish failed:', msg);
+      setPublishError(msg);
     } finally {
       setPublishingLecture(false);
     }
@@ -235,6 +244,16 @@ export const AuditView: React.FC<AuditViewProps> = ({
                 )}
               </button>
             </div>
+
+            {publishError && (
+              <div className="flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-xs">
+                <AlertCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-red-700">AI Connection Error</p>
+                  <p className="text-red-600 mt-0.5">{publishError}</p>
+                </div>
+              </div>
+            )}
 
             {/* Output Verification Display */}
             {activeCourseAudit && (

@@ -58,34 +58,12 @@ Return a strict JSON response with these keys:
 
     const data = parseModelJson(response.text);
     return NextResponse.json({ ...data, mode: 'live' });
-  } catch {
-    console.log('Gemini API meaning translation skipped or failed, using local fallback.');
-    return NextResponse.json({
-      event: lectureTitle || 'AI Governance & Ethics Lecture',
-      translation: [
-        {
-          course: 'AI for Business',
-          agentName: 'AI for Business Course Agent',
-          rule: 'Attendance plus reflection may receive points.',
-          outcome: '2 participation points',
-          reason: 'Directly maps to AI business ethics syllabus module.',
-        },
-        {
-          course: 'Product Management',
-          agentName: 'Product Management Course Agent',
-          rule: 'Attendance counts as external learning activity.',
-          outcome: '1 external learning activity (no direct points)',
-          reason: 'Categorized under optional professional enrichment activity.',
-        },
-        {
-          course: 'Marketing Analytics',
-          agentName: 'Marketing Analytics Course Agent',
-          rule: 'No matching rule.',
-          outcome: 'No action',
-          reason: 'Lecture topic is outside current analytics curriculum constraints.',
-        },
-      ],
-      mode: 'fallback',
-    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    console.error('Gemini API error (translate-meaning):', message);
+    return NextResponse.json(
+      { error: true, message: `AI connection error: ${message}` },
+      { status: 503 }
+    );
   }
 }

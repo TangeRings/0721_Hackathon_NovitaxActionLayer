@@ -95,24 +95,12 @@ Return JSON only.
       mode: 'live',
       sentAt: new Date().toISOString(),
     });
-  } catch {
-    console.log('Authorization request generation skipped or failed, using local fallback.');
-
-    return NextResponse.json({
-      to: 'Alumni Relations',
-      cc: ['Sarah Lee — Career Services', 'Alex Martinez — Innovation Lab'],
-      subject: 'Review requested: overlapping outreach to Maya Chen',
-      body: `Career Services and Innovation Lab are independently preparing outreach to Maya Chen for two upcoming programs.
-
-Neither draft has been sent.
-
-Because Alumni Relations is the institutional relationship owner, please review the overlap and determine whether the invitations should be combined, sequenced, or approved separately.
-
-Both departments will keep their current drafts paused until your response.`,
-      status: 'sent',
-      awaitingResponseFrom: 'Alumni Relations',
-      mode: 'fallback',
-      sentAt: new Date().toISOString(),
-    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    console.error('Gemini API error (request-authorization):', message);
+    return NextResponse.json(
+      { error: true, message: `AI connection error: ${message}` },
+      { status: 503 }
+    );
   }
 }
