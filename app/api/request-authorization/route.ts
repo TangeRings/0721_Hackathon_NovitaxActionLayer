@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getGemini, parseModelJson, Type } from '@/lib/gemini';
+import { generateJson } from '@/lib/novita';
 
 export const runtime = 'nodejs';
 
@@ -8,7 +8,6 @@ export async function POST(request: Request) {
     await request.json();
 
   try {
-    const ai = getGemini();
     const prompt = `
 You are the BlueQ Authorization Request Composer.
 
@@ -56,11 +55,8 @@ Return strict JSON:
 }
 `;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.5-flash',
-      contents: prompt,
-      config: {
-        systemInstruction: `
+    const data = await generateJson({
+      systemInstruction: `
 You compose internal authorization requests for BlueQ.
 
 You do not approve decisions.
@@ -68,27 +64,25 @@ You do not contact external speakers.
 You only create a clear request for the appropriate institutional
 authority to review overlapping actions.
 Return JSON only.
-        `,
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            to: { type: Type.STRING },
-            cc: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING },
-            },
-            subject: { type: Type.STRING },
-            body: { type: Type.STRING },
-            status: { type: Type.STRING },
-            awaitingResponseFrom: { type: Type.STRING },
+      `,
+      prompt,
+      schemaName: 'authorization_request',
+      schema: {
+        type: 'object',
+        properties: {
+          to: { type: 'string' },
+          cc: {
+            type: 'array',
+            items: { type: 'string' },
           },
-          required: ['to', 'cc', 'subject', 'body', 'status', 'awaitingResponseFrom'],
+          subject: { type: 'string' },
+          body: { type: 'string' },
+          status: { type: 'string' },
+          awaitingResponseFrom: { type: 'string' },
         },
+        required: ['to', 'cc', 'subject', 'body', 'status', 'awaitingResponseFrom'],
       },
     });
-
-    const data = parseModelJson(response.text);
 
     return NextResponse.json({
       ...data,
@@ -97,7 +91,7 @@ Return JSON only.
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
-    console.error('Gemini API error (request-authorization):', message);
+    console.error('Novita API error (request-authorization):', message);
     return NextResponse.json(
       { error: true, message: `AI connection error: ${message}` },
       { status: 503 }

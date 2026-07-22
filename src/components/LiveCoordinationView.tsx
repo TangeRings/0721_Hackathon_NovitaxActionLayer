@@ -1011,7 +1011,7 @@ export const LiveCoordinationView: React.FC<LiveCoordinationViewProps> = ({
                           <div className="p-3 bg-red-500/15 border border-red-500/40 rounded-lg text-xs leading-normal">
                             <span className="text-red-400 font-bold block mb-1">⚠ AI Connection Error</span>
                             <p className="text-[10px] text-slate-300 leading-normal">
-                              Could not reach the Gemini AI service. Check that <code className="bg-slate-800 px-1 rounded">GEMINI_API_KEY</code> in <code className="bg-slate-800 px-1 rounded">.env.local</code> is valid and restart the server.
+                              Could not reach the Novita AI service. Check that <code className="bg-slate-800 px-1 rounded">NOVITA_API_KEY</code> and <code className="bg-slate-800 px-1 rounded">NOVITA_MODEL</code> in <code className="bg-slate-800 px-1 rounded">.env.local</code> are valid and restart the server.
                             </p>
                           </div>
                           <button

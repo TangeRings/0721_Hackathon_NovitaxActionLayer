@@ -42,7 +42,7 @@ export const AuditView: React.FC<AuditViewProps> = ({
   const [publishError, setPublishError] = useState<string | null>(null);
   const [activeCourseAudit, setActiveCourseAudit] = useState<CourseRecognition | null>(null);
 
-  // Publish a new lecture event and translate its meaning via Gemini API
+  // Publish a new lecture event and translate its meaning via Novita AI
   const handlePublishLecture = async () => {
     if (!customLectureTitle.trim()) return;
     setPublishingLecture(true);

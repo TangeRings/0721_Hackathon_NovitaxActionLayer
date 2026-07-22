@@ -2,5 +2,5 @@
   "name": "BlueQ for Agentic Institutions",
   "description": "A federated institutional agent mesh for decentralized campus coordination, observing local action intents and managing cross-departmental intersections and handshakes.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_NOVITA_API"]
 }

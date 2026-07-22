@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getGemini, parseModelJson, Type } from '@/lib/gemini';
+import { generateJson } from '@/lib/novita';
 
 export const runtime = 'nodejs';
 
@@ -7,8 +7,6 @@ export async function POST(request: Request) {
   const { secretaryTask, hackathonTask, historicalContext } = await request.json();
 
   try {
-    const ai = getGemini();
-
     const prompt = `
 Analyze two independently initiated institutional actions.
 
@@ -67,11 +65,8 @@ Return strict JSON using exactly this structure:
 }
 `;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.5-flash',
-      contents: prompt,
-      config: {
-        systemInstruction: `
+    const data = await generateJson({
+      systemInstruction: `
 You are the BlueQ Institutional Coordination Layer.
 
 Independent departments own their own agents, goals, data, and authority.
@@ -83,45 +78,44 @@ and propose bounded, reversible next steps.
 
 Do not execute actions or claim authorization.
 Return JSON only.
-        `,
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            logs: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING },
-            },
-            conflictAnalysis: {
-              type: Type.STRING,
-            },
-            solution1: {
-              type: Type.OBJECT,
-              properties: {
-                title: { type: Type.STRING },
-                description: { type: Type.STRING },
-              },
-              required: ['title', 'description'],
-            },
-            solution2: {
-              type: Type.OBJECT,
-              properties: {
-                title: { type: Type.STRING },
-                description: { type: Type.STRING },
-              },
-              required: ['title', 'description'],
-            },
+      `,
+      prompt,
+      schemaName: 'coordination_scan',
+      schema: {
+        type: 'object',
+        properties: {
+          logs: {
+            type: 'array',
+            items: { type: 'string' },
           },
-          required: ['logs', 'conflictAnalysis', 'solution1', 'solution2'],
+          conflictAnalysis: {
+            type: 'string',
+          },
+          solution1: {
+            type: 'object',
+            properties: {
+              title: { type: 'string' },
+              description: { type: 'string' },
+            },
+            required: ['title', 'description'],
+          },
+          solution2: {
+            type: 'object',
+            properties: {
+              title: { type: 'string' },
+              description: { type: 'string' },
+            },
+            required: ['title', 'description'],
+          },
         },
+        required: ['logs', 'conflictAnalysis', 'solution1', 'solution2'],
       },
     });
 
-    const data = parseModelJson(response.text);
     return NextResponse.json({ ...data, mode: 'live' });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
-    console.error('Gemini API error (coordination-scan):', message);
+    console.error('Novita API error (coordination-scan):', message);
     return NextResponse.json(
       { error: true, message: `AI connection error: ${message}` },
       { status: 503 }

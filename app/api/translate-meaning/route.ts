@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server';
-import { getGemini, parseModelJson, Type } from '@/lib/gemini';
+import { generateJson } from '@/lib/novita';
 
 export const runtime = 'nodejs';
 
 export async function POST(request: Request) {
   const { lectureTitle } = await request.json();
   try {
-    const ai = getGemini();
     const prompt = `
 You are the Policy and Authority Resolver for BlueQ.
 The "AI Research Center" has published an approved public lecture on "${lectureTitle || 'AI Governance & Ethics'}".
@@ -27,40 +26,36 @@ Return a strict JSON response with these keys:
   - reason: string
 `;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.5-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            event: { type: Type.STRING },
-            translation: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  course: { type: Type.STRING },
-                  agentName: { type: Type.STRING },
-                  rule: { type: Type.STRING },
-                  outcome: { type: Type.STRING },
-                  reason: { type: Type.STRING },
-                },
-                required: ['course', 'agentName', 'rule', 'outcome', 'reason'],
+    const data = await generateJson({
+      prompt,
+      schemaName: 'meaning_translation',
+      schema: {
+        type: 'object',
+        properties: {
+          event: { type: 'string' },
+          translation: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                course: { type: 'string' },
+                agentName: { type: 'string' },
+                rule: { type: 'string' },
+                outcome: { type: 'string' },
+                reason: { type: 'string' },
               },
+              required: ['course', 'agentName', 'rule', 'outcome', 'reason'],
             },
           },
-          required: ['event', 'translation'],
         },
+        required: ['event', 'translation'],
       },
     });
 
-    const data = parseModelJson(response.text);
     return NextResponse.json({ ...data, mode: 'live' });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
-    console.error('Gemini API error (translate-meaning):', message);
+    console.error('Novita API error (translate-meaning):', message);
     return NextResponse.json(
       { error: true, message: `AI connection error: ${message}` },
       { status: 503 }

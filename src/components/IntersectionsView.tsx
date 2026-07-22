@@ -58,7 +58,7 @@ export const IntersectionsView: React.FC<IntersectionsViewProps> = ({
   const [selectedIntersectionId, setSelectedIntersectionId] = useState<string>('intersection-relationship');
   const [showSuccessBanner, setShowSuccessBanner] = useState(false);
   
-  // Loading states for backend Gemini calls
+  // Loading states for backend Novita AI calls
   const [loadingConsolidation, setLoadingConsolidation] = useState(false);
   const [loadingPolicy, setLoadingPolicy] = useState(false);
   const [consolidationError, setConsolidationError] = useState<string | null>(null);
@@ -227,7 +227,7 @@ export const IntersectionsView: React.FC<IntersectionsViewProps> = ({
     onUpdateIntersectionStatus('intersection-relationship', 'open', null);
   };
 
-  // Evaluate policy with Gemini
+  // Evaluate policy with Novita AI
   const handleEvaluatePolicy = async () => {
     setLoadingPolicy(true);
     setPolicyError(null);
@@ -524,7 +524,7 @@ export const IntersectionsView: React.FC<IntersectionsViewProps> = ({
 
                           <div className="flex items-center justify-between">
                             <h3 className="font-display font-semibold text-xs text-slate-500 uppercase flex items-center gap-1.5">
-                              <Mail className="h-3.5 w-3.5 text-blue-500" /> Coordinated Gmail Draft (Gemini Brokered)
+                              <Mail className="h-3.5 w-3.5 text-blue-500" /> Coordinated Gmail Draft (Novita AI Brokered)
                             </h3>
                             {consolidatedDraft && (
                               <button
@@ -540,7 +540,7 @@ export const IntersectionsView: React.FC<IntersectionsViewProps> = ({
                             <div className="border border-slate-200 rounded-xl p-10 flex flex-col items-center justify-center space-y-3">
                               <Loader2 className="h-6 w-6 text-blue-500 animate-spin" />
                               <span className="text-xs text-slate-500 font-mono">
-                                Gemini compiling semantic context & drafting outreach...
+                                Novita AI compiling semantic context & drafting outreach...
                               </span>
                             </div>
                           ) : consolidationError ? (
@@ -705,7 +705,7 @@ export const IntersectionsView: React.FC<IntersectionsViewProps> = ({
                     <div className="border border-slate-200 rounded-xl p-6 flex items-center justify-center gap-3">
                       <Loader2 className="h-4 w-4 text-emerald-600 animate-spin" />
                       <span className="text-xs text-slate-500 font-mono">
-                        Evaluating canvas authorization policies via Gemini...
+                        Evaluating canvas authorization policies via Novita AI...
                       </span>
                     </div>
                   ) : policyError ? (
@@ -726,7 +726,7 @@ export const IntersectionsView: React.FC<IntersectionsViewProps> = ({
                     policyEvaluation && (
                       <div className="bg-slate-50 border border-slate-150 rounded-xl p-4 space-y-3">
                         <h4 className="font-display font-semibold text-xs text-slate-800 flex items-center gap-1.5">
-                          <ShieldCheck className="h-4 w-4 text-emerald-600" /> Broker Policy Decision (Gemini Policy Resolver)
+                          <ShieldCheck className="h-4 w-4 text-emerald-600" /> Broker Policy Decision (Novita AI Policy Resolver)
                         </h4>
                         <p className="text-xs text-slate-600 leading-relaxed">
                           {policyEvaluation.policyExplanation}

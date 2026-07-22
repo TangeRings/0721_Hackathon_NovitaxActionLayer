@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server';
-import { getGemini, parseModelJson, Type } from '@/lib/gemini';
+import { generateJson } from '@/lib/novita';
 
 export const runtime = 'nodejs';
 
 export async function POST() {
   try {
-    const ai = getGemini();
     const prompt = `
 You are the Semantic Conflict Detector & Handshake Broker for BlueQ.
 We are consolidating separate outreach intents to "Maya Chen" (Director of AI Partnerships at Google) under "Alumni Relations" in coordination with "Career Services" and "Innovation Lab".
@@ -26,38 +25,34 @@ Return a JSON structure:
 - summary: string
 `;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.5-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            sender: { type: Type.STRING },
-            recipient: { type: Type.STRING },
-            collaborators: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING },
-            },
-            subject: { type: Type.STRING },
-            body: { type: Type.STRING },
-            provenanceTrail: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING },
-            },
-            summary: { type: Type.STRING },
+    const data = await generateJson({
+      prompt,
+      schemaName: 'consolidated_outreach',
+      schema: {
+        type: 'object',
+        properties: {
+          sender: { type: 'string' },
+          recipient: { type: 'string' },
+          collaborators: {
+            type: 'array',
+            items: { type: 'string' },
           },
-          required: ['sender', 'recipient', 'collaborators', 'subject', 'body', 'provenanceTrail', 'summary'],
+          subject: { type: 'string' },
+          body: { type: 'string' },
+          provenanceTrail: {
+            type: 'array',
+            items: { type: 'string' },
+          },
+          summary: { type: 'string' },
         },
+        required: ['sender', 'recipient', 'collaborators', 'subject', 'body', 'provenanceTrail', 'summary'],
       },
     });
 
-    const data = parseModelJson(response.text);
     return NextResponse.json({ ...data, mode: 'live' });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
-    console.error('Gemini API error (consolidate-outreach):', message);
+    console.error('Novita API error (consolidate-outreach):', message);
     return NextResponse.json(
       { error: true, message: `AI connection error: ${message}` },
       { status: 503 }
